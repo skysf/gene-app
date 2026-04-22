@@ -33,13 +33,28 @@ export default function SettingsPage() {
   const [saveToast, setSaveToast] = useState<string | null>(null);
   const [test, setTest] = useState<TestState>({ status: "idle" });
 
-  useEffect(() => {
-    if (!ready) return;
+  const [syncedTo, setSyncedTo] = useState<{
+    ready: boolean;
+    model: string;
+    baseUrl: string;
+  }>({ ready: false, model: "", baseUrl: "" });
+
+  if (
+    ready &&
+    (!syncedTo.ready ||
+      syncedTo.model !== settings.model ||
+      syncedTo.baseUrl !== settings.baseUrl)
+  ) {
+    setSyncedTo({
+      ready: true,
+      model: settings.model,
+      baseUrl: settings.baseUrl,
+    });
     const isPreset = MODEL_PRESETS.some((p) => p.id === settings.model);
     setUseCustom(!isPreset);
     setCustomModel(isPreset ? "" : settings.model);
     setBaseUrlDraft(settings.baseUrl);
-  }, [ready, settings.model, settings.baseUrl]);
+  }
 
   useEffect(() => {
     if (!saveToast) return;
