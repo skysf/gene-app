@@ -33,7 +33,7 @@ export const sickleCaseSteps: SickleCaseStep[] = [
     title: "定位 DNA 中的关键替换",
     focus: "从编码链看突变",
     explanation:
-      "在这个教学简化片段中，我们看到第 20 位碱基发生替换，使原来的 GAG 密码子变成了 GTG。",
+      "在这个教学片段中，我们看到第 20 位碱基发生替换（GAG → GTG）。该片段节选自 HBB 基因前 30 个碱基，对应参考序列 NM_000518.5 的起始区域。",
     normalSequence: HBB_NORMAL_SEQUENCE,
     mutantSequence: HBB_SICKLE_SEQUENCE,
     highlightStart: SICKLE_MUTATION_INDEX - 1,
@@ -55,7 +55,7 @@ export const sickleCaseSteps: SickleCaseStep[] = [
     title: "氨基酸从谷氨酸变成缬氨酸",
     focus: "mRNA -> 蛋白质",
     explanation:
-      "正常序列翻译后这段蛋白质中包含 Glu，突变后相同位置变成了 Val，这会改变血红蛋白分子的性质。",
+      "正常序列翻译后这段蛋白质中包含 Glu（谷氨酸），突变后相同位置变成 Val（缬氨酸）。Glu 带负电、亲水，Val 疏水；在低氧状态下，改变后的 β 链会让血红蛋白互相聚合形成长链，把红细胞拉成镰刀形。教科书习惯记作 β6 Glu→Val（成熟链从 Val 起数），临床 HGVS 写作 p.Glu7Val（从起始甲硫氨酸起数），指的都是同一个位点。",
     normalProtein: formatAminoAcids(translateMrna(toMrna(HBB_NORMAL_SEQUENCE))),
     mutantProtein: formatAminoAcids(translateMrna(toMrna(HBB_SICKLE_SEQUENCE))),
   },

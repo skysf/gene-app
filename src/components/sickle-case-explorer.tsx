@@ -58,7 +58,7 @@ export function SickleCaseExplorer() {
               onClick={() => setActiveStep(index)}
               className={`rounded-[1.35rem] border px-4 py-4 text-left transition ${
                 activeStep === index
-                  ? "border-stone-900 bg-stone-900 text-white shadow-soft"
+                  ? "border-emerald-600 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-soft"
                   : "border-stone-200 bg-white/82 text-stone-800 hover:border-stone-400 hover:bg-white"
               }`}
             >
@@ -89,7 +89,7 @@ export function SickleCaseExplorer() {
           <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-stone-950 px-3 py-1 text-xs font-semibold text-white">
+                <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
                   步骤 {activeStep + 1} / {sickleCaseSteps.length}
                 </span>
                 <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
@@ -146,7 +146,7 @@ export function SickleCaseExplorer() {
                 把当前一步放回完整因果链
               </h3>
             </div>
-            <span className="rounded-full bg-stone-950 px-3 py-1 text-xs font-semibold text-white">
+            <span className="rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 px-3 py-1 text-xs font-semibold text-white">
               DNA -&gt; mRNA -&gt; 蛋白质 -&gt; 性状 -&gt; 种群
             </span>
           </div>
@@ -169,7 +169,7 @@ export function SickleCaseExplorer() {
             />
           </div>
 
-          <p className="mt-5 rounded-[1.5rem] bg-stone-950 px-5 py-4 text-sm leading-7 text-stone-100">
+          <p className="mt-5 rounded-[1.5rem] bg-gradient-to-br from-emerald-700 to-teal-800 px-5 py-4 text-sm leading-7 text-emerald-50">
             这是一个典型的点突变示例。它本身属于替换导致的错义突变，但它的影响可以延伸到蛋白质性质、细胞形态，甚至进一步联系到种群中的自然选择。
           </p>
         </article>

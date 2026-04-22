@@ -1,0 +1,52 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Gene App",
+  "version": "0.1.0",
+  "identifier": "com.skyludata.gene-app",
+  "build": {
+    "frontendDist": "../out",
+    "devUrl": "http://localhost:1953",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "基因突变教学模拟器",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "nsis"],
+    "category": "Education",
+    "shortDescription": "基因突变教学模拟器",
+    "longDescription": "面向中国高中生的基因突变、镰状细胞贫血和自然选择互动教学工具。",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/skysf/gene-app/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZFQTA1OTlCNzBBMzkwM0MKUldROGtLTndtMW1nL2pvVkI4YWE1TXNKaHlBVmhrbjBKa1YxU1BSWmk3RWtUU0R2QlhkMlREUW0K",
+      "dialog": false
+    }
+  }
+}
