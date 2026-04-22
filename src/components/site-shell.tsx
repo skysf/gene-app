@@ -21,7 +21,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           <div className="rounded-[1.85rem] border border-white/70 bg-white/62 p-4 shadow-soft backdrop-blur">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <Link href="/" className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-[1.35rem] bg-stone-950 text-sm font-bold text-white shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-bold text-white shadow-sm">
                   DNA
                 </div>
                 <div>
@@ -39,6 +39,16 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                   平板优先 · 离线可用 · 联网 AI 解释
                 </div>
                 <NetworkStatus />
+                <Link
+                  href="/settings"
+                  className={`inline-flex min-h-9 items-center rounded-full border px-3 text-xs font-semibold transition ${
+                    pathname === "/settings" || pathname.startsWith("/settings/")
+                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      : "border-stone-200 bg-white/78 text-stone-700 hover:border-stone-400"
+                  }`}
+                >
+                  设置
+                </Link>
               </div>
             </div>
 
@@ -56,7 +66,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
                       href={item.href}
                       className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold transition ${
                         isActive
-                          ? "border-stone-950 bg-stone-950 text-white shadow-sm"
+                          ? "border-emerald-600 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
                           : "border-stone-200 bg-white/78 text-stone-700 hover:border-stone-400 hover:bg-white hover:text-stone-900"
                       }`}
                     >

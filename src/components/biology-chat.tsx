@@ -1,7 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import type { BiologyChatContext, ChatMessage } from "@/lib/chat";
+import { explainError, streamChatCompletion } from "@/lib/openrouter";
+import { useSettings } from "@/lib/settings-context";
 
 type BiologyChatProps = {
   title?: string;
@@ -9,23 +12,25 @@ type BiologyChatProps = {
   context: BiologyChatContext;
 };
 
+const INITIAL_MESSAGE: ChatMessage = {
+  role: "assistant",
+  content:
+    "我可以解释当前页面里的生物概念和实验结果。你可以直接问我“为什么这次突变会这样”或“请结合当前图表解释”。",
+};
+
 export function BiologyChat({
   title = "AI 生物助手",
   exampleQuestions,
   context,
 }: BiologyChatProps) {
+  const { settings, ready, hasApiKey } = useSettings();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [draft, setDraft] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content:
-        "我可以解释当前页面里的生物概念和实验结果。你可以直接问我“为什么这次突变会这样”或“请结合当前图表解释”。",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const sync = () => setIsOnline(window.navigator.onLine);
@@ -40,6 +45,13 @@ export function BiologyChat({
     };
   }, []);
 
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+    },
+    [],
+  );
+
   async function sendMessage(nextContent: string) {
     const content = nextContent.trim();
 
@@ -47,41 +59,80 @@ export function BiologyChat({
       return;
     }
 
-    const nextMessages = [...messages, { role: "user" as const, content }];
-    setMessages(nextMessages);
-    setDraft("");
-    setIsPending(true);
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: nextMessages,
-          context,
-        }),
-      });
-
-      const payload = (await response.json()) as { answer?: string };
-      const answer =
-        payload.answer ??
-        "暂时没有拿到模型回复。你可以继续围绕当前实验页面问我生物问题。";
-
-      setMessages((current) => [...current, { role: "assistant", content: answer }]);
-    } catch (error) {
-      console.error(error);
+    if (!hasApiKey || !settings.apiKey) {
       setMessages((current) => [
         ...current,
+        { role: "user", content },
         {
           role: "assistant",
           content:
-            "这次联网请求没有成功。你仍然可以继续使用离线模拟器，也可以稍后再试一次。",
+            "还没有配置 OpenRouter API Key。请打开右上角的“设置”填写你的 Key 后再试。",
         },
       ]);
+      setDraft("");
+      return;
+    }
+
+    const userMessage: ChatMessage = { role: "user", content };
+    const placeholder: ChatMessage = { role: "assistant", content: "" };
+    const historyForModel = [...messages, userMessage];
+
+    setMessages([...messages, userMessage, placeholder]);
+    setDraft("");
+    setIsPending(true);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      await streamChatCompletion({
+        apiKey: settings.apiKey,
+        model: settings.model,
+        baseUrl: settings.baseUrl,
+        messages: historyForModel,
+        context,
+        signal: controller.signal,
+        onChunk: (delta) => {
+          setMessages((current) => {
+            const last = current[current.length - 1];
+            if (!last || last.role !== "assistant") return current;
+            const copy = current.slice(0, -1);
+            copy.push({ ...last, content: last.content + delta });
+            return copy;
+          });
+        },
+      });
+
+      setMessages((current) => {
+        const last = current[current.length - 1];
+        if (last && last.role === "assistant" && last.content.length === 0) {
+          const copy = current.slice(0, -1);
+          copy.push({
+            role: "assistant",
+            content: "（模型这次没有返回内容，稍后再试一次。）",
+          });
+          return copy;
+        }
+        return current;
+      });
+    } catch (error) {
+      const detail =
+        explainError(error) || "这次请求没有成功，稍后再试一次。";
+      if (!detail) return; // aborted
+      setMessages((current) => {
+        const last = current[current.length - 1];
+        const copy = current.slice(0, -1);
+        if (last && last.role === "assistant" && last.content.length === 0) {
+          copy.push({ role: "assistant", content: detail });
+        } else if (last) {
+          copy.push(last);
+          copy.push({ role: "assistant", content: detail });
+        }
+        return copy;
+      });
     } finally {
       setIsPending(false);
+      abortRef.current = null;
     }
   }
 
@@ -90,7 +141,45 @@ export function BiologyChat({
     await sendMessage(draft);
   }
 
-  function renderPanelBody(options?: { mobileClose?: boolean; desktopCollapse?: boolean }) {
+  function renderStatusBanner() {
+    if (!ready) {
+      return (
+        <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-semibold text-stone-600">
+          正在读取设置...
+        </div>
+      );
+    }
+    if (!isOnline) {
+      return (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+          当前离线，AI 不可用；模拟器其他模块仍可继续使用。
+        </div>
+      );
+    }
+    if (!hasApiKey) {
+      return (
+        <div className="mt-4 flex items-start justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800">
+          <span>还没有配置 OpenRouter API Key。</span>
+          <Link
+            href="/settings"
+            className="shrink-0 rounded-full bg-sky-700 px-3 py-1 text-[11px] font-semibold text-white"
+          >
+            去设置
+          </Link>
+        </div>
+      );
+    }
+    return (
+      <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
+        已连接 OpenRouter · 模型 {settings.model}
+      </div>
+    );
+  }
+
+  function renderPanelBody(options?: {
+    mobileClose?: boolean;
+    desktopCollapse?: boolean;
+  }) {
     return (
       <>
         <div className="flex items-start justify-between gap-3">
@@ -122,17 +211,7 @@ export function BiologyChat({
           </div>
         </div>
 
-        <div
-          className={`mt-4 rounded-2xl border px-3 py-2 text-xs font-semibold ${
-            isOnline
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-amber-200 bg-amber-50 text-amber-800"
-          }`}
-        >
-          {isOnline
-            ? "联网时可调用百炼 / Kimi"
-            : "当前离线中，AI 不可用，但模拟器仍可继续使用"}
-        </div>
+        {renderStatusBanner()}
 
         <div className="mt-4 flex flex-wrap gap-2">
           {exampleQuestions.map((question) => (
@@ -154,20 +233,20 @@ export function BiologyChat({
               className={`rounded-[1.3rem] px-4 py-3 text-sm leading-7 ${
                 message.role === "assistant"
                   ? "bg-white text-stone-800"
-                  : "bg-stone-950 text-white"
+                  : "bg-gradient-to-br from-emerald-500 to-teal-600 text-white"
               }`}
             >
               <p className="mb-1 text-[11px] font-semibold tracking-[0.18em] uppercase opacity-70">
                 {message.role === "assistant" ? "AI" : "你"}
               </p>
-              <p>{message.content}</p>
+              <p className="whitespace-pre-wrap">
+                {message.content ||
+                  (isPending && index === messages.length - 1
+                    ? "正在整理生物解释..."
+                    : "")}
+              </p>
             </article>
           ))}
-          {isPending ? (
-            <article className="rounded-[1.3rem] bg-white px-4 py-3 text-sm text-stone-600">
-              正在整理生物解释...
-            </article>
-          ) : null}
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-3">
@@ -180,10 +259,10 @@ export function BiologyChat({
           />
           <button
             type="submit"
-            disabled={!isOnline || isPending || !draft.trim()}
+            disabled={!isOnline || isPending || !draft.trim() || !hasApiKey}
             className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-emerald-700 px-4 text-sm font-semibold text-white transition enabled:hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-stone-300"
           >
-            发送生物问题
+            {isPending ? "生成中..." : "发送生物问题"}
           </button>
         </form>
       </>
@@ -195,7 +274,7 @@ export function BiologyChat({
       <button
         type="button"
         onClick={() => setIsMobileOpen(true)}
-        className="fixed right-4 bottom-5 z-30 inline-flex min-h-12 items-center rounded-full bg-stone-950 px-5 text-sm font-semibold text-white shadow-lg lg:hidden"
+        className="fixed right-4 bottom-5 z-30 inline-flex min-h-12 items-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-5 text-sm font-semibold text-white shadow-lg hover:from-emerald-600 hover:to-teal-700 lg:hidden"
       >
         AI 助手
       </button>
@@ -212,7 +291,7 @@ export function BiologyChat({
               onClick={() => setIsDesktopCollapsed(false)}
               className="flex w-full flex-col items-center gap-4 rounded-[1.25rem] border border-stone-200 bg-white/78 px-2 py-4 text-center transition hover:border-stone-400"
             >
-              <span className="rounded-2xl bg-stone-950 px-3 py-2 text-sm font-bold text-white">
+              <span className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 px-3 py-2 text-sm font-bold text-white">
                 AI
               </span>
               <span className="text-sm font-semibold leading-5 text-stone-800">

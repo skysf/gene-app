@@ -25,13 +25,13 @@ export default function Home() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/cases"
-                className="inline-flex min-h-12 items-center justify-center rounded-full bg-stone-950 px-6 text-sm font-semibold text-white transition hover:bg-stone-800"
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:from-emerald-600 hover:to-teal-700"
               >
                 先看典型案例
               </Link>
               <Link
                 href="/lab"
-                className="inline-flex min-h-12 items-center justify-center rounded-full border border-stone-300 bg-white/80 px-6 text-sm font-semibold text-stone-900 transition hover:border-stone-500 hover:bg-white"
+                className="inline-flex min-h-12 items-center justify-center rounded-full border border-amber-300 bg-amber-50 px-6 text-sm font-semibold text-amber-900 transition hover:border-amber-500 hover:bg-amber-100"
               >
                 进入自由探究
               </Link>
@@ -135,10 +135,10 @@ export default function Home() {
           <ul className="mt-5 space-y-3 text-sm leading-7 text-sky-50/90">
             <li>只回答生物相关问题，优先中国高中生物课程范围。</li>
             <li>会结合当前实验上下文，解释“为什么这次突变会这样”。</li>
-            <li>联网时可用，断网时会提示学生继续使用离线模拟器。</li>
+            <li>联网时可用，断网时模拟器其余模块仍可继续使用。</li>
           </ul>
           <div className="mt-6 rounded-3xl bg-white/10 p-4 text-sm leading-7 text-sky-50/85">
-            首版将接入阿里云百炼与 Kimi，通过统一的 `/api/chat` 接口代理，前端不直接暴露 API Key。
+            AI 通过 OpenRouter 调用，需在设置里填入你自己的 API Key；Key 仅保存在本机系统 keychain，不会上传。
           </div>
         </div>
       </section>

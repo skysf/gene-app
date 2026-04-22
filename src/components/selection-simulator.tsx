@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { FrequencyChart, GenotypeBars } from "@/components/charts";
+import { FrequencyChart, GenotypeBars, GenotypeTrajectory } from "@/components/charts";
 import {
+  computeEquilibrium,
   environmentPresets,
   simulateSelection,
   summarizeSelection,
@@ -47,10 +48,14 @@ export function SelectionSimulator() {
   const focusRow = rows[activeGeneration] ?? rows.at(-1) ?? rows[0];
   const lastRow = rows.at(-1) ?? rows[0];
   const summary = summarizeSelection(rows, environmentPresets[preset].label);
+  const equilibrium = computeEquilibrium(fitnessAA, fitnessAS, fitnessSS);
+  const equilibriumQ =
+    equilibrium.type === "overdominance" ? equilibrium.qStar : undefined;
   const focusNotes = [
     `当前环境是“${environmentPresets[preset].label}”，先看三种基因型的相对生存率差异。`,
     `把观察代数切到第 ${focusRow?.generation ?? 0} 代时，优先比较 HbA/HbA、HbA/HbS 和 HbS/HbS 的比例。`,
     `最后再回到频率曲线，确认 HbS 是持续上升、下降，还是在某个范围附近保持。`,
+    equilibrium.note,
   ];
 
   return (
@@ -102,7 +107,7 @@ export function SelectionSimulator() {
                 onClick={() => applyPreset(key)}
                 className={`min-h-11 rounded-full px-4 text-sm font-semibold transition ${
                   preset === key
-                    ? "bg-stone-950 text-white"
+                    ? "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
                     : "border border-stone-200 bg-white text-stone-700 hover:border-stone-400"
                 }`}
               >
@@ -134,13 +139,14 @@ export function SelectionSimulator() {
               valueFormatter={(value) => `${value} 代`}
             />
             <SliderField
-              label="种群规模"
+              label="展示用种群规模"
               value={populationSize}
               min={60}
               max={600}
               step={10}
               onChange={setPopulationSize}
               valueFormatter={(value) => `${value} 人`}
+              hint="仅用于换算每代基因型大约对应多少人，不会改变频率曲线本身。"
             />
             <SliderField
               label="HbA/HbA 生存率"
@@ -195,7 +201,8 @@ export function SelectionSimulator() {
             </div>
           </article>
 
-          <FrequencyChart rows={rows} />
+          <FrequencyChart rows={rows} equilibriumQ={equilibriumQ} />
+          <GenotypeTrajectory rows={rows} />
           {focusRow ? <GenotypeBars row={focusRow} /> : null}
 
           <article className="rounded-[1.55rem] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.96),rgba(253,243,214,0.84))] p-5">
@@ -234,6 +241,7 @@ type SliderFieldProps = {
   step: number;
   onChange: (value: number) => void;
   valueFormatter?: (value: number) => string;
+  hint?: string;
 };
 
 function SliderField({
@@ -244,6 +252,7 @@ function SliderField({
   step,
   onChange,
   valueFormatter,
+  hint,
 }: SliderFieldProps) {
   return (
     <label className="grid gap-3 rounded-[1.25rem] border border-stone-200 bg-white/85 p-4">
@@ -262,6 +271,7 @@ function SliderField({
         onChange={(event) => onChange(Number(event.target.value))}
         className="accent-sky-700"
       />
+      {hint ? <span className="text-xs leading-5 text-stone-500">{hint}</span> : null}
     </label>
   );
 }

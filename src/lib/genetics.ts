@@ -78,9 +78,10 @@ const CODON_TABLE: Record<string, string> = {
 
 export const DNA_BASES = ["A", "T", "C", "G"] as const;
 
-export const HBB_NORMAL_SEQUENCE = "ATGGTGCACCTGACTCCTGAGGAGAAGTCT";
-export const HBB_SICKLE_SEQUENCE = "ATGGTGCACCTGACTCCTGTGGAGAAGTCT";
+export const HBB_NORMAL_SEQUENCE = "ATGGTGCATCTGACTCCTGAGGAGAAGTCT";
+export const HBB_SICKLE_SEQUENCE = "ATGGTGCATCTGACTCCTGTGGAGAAGTCT";
 export const SICKLE_MUTATION_INDEX = 19;
+export const HBB_FRAGMENT_LENGTH = HBB_NORMAL_SEQUENCE.length;
 
 export function sanitizeDnaInput(value: string) {
   return value.toUpperCase().replace(/[^ATCG]/g, "");
@@ -183,6 +184,8 @@ export function summarizeMutation(
   const sameProtein = proteinBeforeList.join("|") === proteinAfterList.join("|");
   const stopBefore = findStopIndex(proteinBeforeList);
   const stopAfter = findStopIndex(proteinAfterList);
+  const earlyStopIntroduced =
+    stopAfter !== -1 && (stopBefore === -1 || stopAfter < stopBefore);
 
   let classification = "结果待观察";
   let explanation = "你可以继续比较突变前后的密码子和氨基酸。";
@@ -195,22 +198,26 @@ export function summarizeMutation(
     classification = "沉默突变";
     explanation =
       "虽然 DNA 序列发生了变化，但对应的密码子仍然编码同一种氨基酸，所以蛋白质一级结构没有明显变化。";
-  } else if (stopAfter !== -1 && (stopBefore === -1 || stopAfter < stopBefore)) {
-    classification = "无义突变";
-    explanation =
-      "新的密码子过早变成终止信号，翻译过程提前停止，得到的蛋白质往往会缩短。";
   } else if (mode === "substitution") {
-    classification = "错义突变";
-    explanation =
-      "替换改变了某个密码子所对应的氨基酸，这可能进一步影响蛋白质的结构和功能。";
+    if (earlyStopIntroduced) {
+      classification = "无义突变";
+      explanation =
+        "单个碱基替换把某个密码子变成终止信号，翻译会提前结束，蛋白质因此被截短。这一类按惯例只涵盖碱基替换。";
+    } else {
+      classification = "错义突变";
+      explanation =
+        "替换改变了某个密码子所对应的氨基酸，这可能进一步影响蛋白质的结构和功能。";
+    }
   } else if (mode === "insertion") {
     classification = "整码插入";
-    explanation =
-      "插入的碱基数是 3 的倍数，阅读框没有整体移动，但会额外插入新的氨基酸。";
+    explanation = earlyStopIntroduced
+      ? "插入的碱基数是 3 的倍数，阅读框没有整体移动，但插入后的新密码子中出现了终止信号，翻译会提前结束。此时通常不称为无义突变（该术语仅指碱基替换），但效果包含蛋白质被截短。"
+      : "插入的碱基数是 3 的倍数，阅读框没有整体移动，但会额外插入新的氨基酸。";
   } else if (mode === "deletion") {
     classification = "整码缺失";
-    explanation =
-      "缺失的碱基数是 3 的倍数，阅读框没有整体移动，但会缺少一段氨基酸。";
+    explanation = earlyStopIntroduced
+      ? "缺失的碱基数是 3 的倍数，阅读框没有整体移动，但删除后在拼接处形成了新的终止密码子，翻译会提前结束。此时通常不称为无义突变（该术语仅指碱基替换），但效果包含蛋白质被截短。"
+      : "缺失的碱基数是 3 的倍数，阅读框没有整体移动，但会缺少一段氨基酸。";
   }
 
   return {

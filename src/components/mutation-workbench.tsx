@@ -85,6 +85,9 @@ export function MutationWorkbench() {
             <p className="mt-4 text-base leading-8 text-stone-700">
               这里把 DNA 编码链、mRNA 和氨基酸放进同一个观察界面。你可以自由切换替换、增添和缺失，直接看到一次操作如何沿着分子链条继续传递。
             </p>
+            <p className="mt-3 rounded-[1.2rem] border border-amber-200 bg-amber-50/85 px-4 py-3 text-xs leading-6 text-amber-900">
+              教学简化提示：本台使用 HBB 基因起始的 30 个碱基教学片段（完整 HBB 基因约 1600 bp，含 3 个外显子）。为了让学生直接观察「一次修改如何传递到氨基酸」，我们只展示编码链视角；真实转录是以模板链为模板进行的。
+            </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[28rem]">
@@ -116,7 +119,7 @@ export function MutationWorkbench() {
                 onClick={() => setMode(item)}
                 className={`min-h-11 rounded-full px-4 text-sm font-semibold transition ${
                   mode === item
-                    ? "bg-stone-950 text-white"
+                    ? "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
                     : "border border-stone-200 bg-white text-stone-700 hover:border-stone-400"
                 }`}
               >
@@ -145,10 +148,10 @@ export function MutationWorkbench() {
                       key={base}
                       type="button"
                       onClick={() => setReplacementBase(base)}
-                      className={`min-h-11 min-w-11 rounded-2xl px-4 text-sm font-semibold ${
+                      className={`min-h-11 min-w-11 rounded-2xl px-4 text-sm font-semibold transition ${
                         replacementBase === base
-                          ? "bg-emerald-700 text-white"
-                          : "border border-stone-200 bg-stone-50 text-stone-700"
+                          ? "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                          : "border border-stone-200 bg-stone-50 text-stone-700 hover:border-stone-400"
                       }`}
                     >
                       {base}
@@ -166,6 +169,15 @@ export function MutationWorkbench() {
                   placeholder="例如 A 或 ATG"
                   className="min-h-12 rounded-2xl border border-stone-200 px-4 text-sm outline-none focus:border-emerald-400"
                 />
+                {insertionBases.length === 0 ? (
+                  <span className="text-xs text-amber-700">
+                    输入为空，将默认插入 A 作为演示
+                  </span>
+                ) : (
+                  <span className="text-xs text-stone-500">
+                    当前插入 {insertionBases}（{insertionBases.length} 个碱基）
+                  </span>
+                )}
               </ControlCard>
             ) : null}
 
@@ -208,7 +220,9 @@ export function MutationWorkbench() {
           <article className="rounded-[1.6rem] border border-emerald-200 bg-[linear-gradient(180deg,rgba(236,253,245,0.96),rgba(210,250,229,0.86))] p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-emerald-900">判定结果</p>
+                <p className="text-sm font-semibold text-emerald-900">
+                  判定结果 · 按蛋白质影响分类（拓展）
+                </p>
                 <h3 className="mt-2 text-2xl font-semibold text-emerald-950">
                   {summary.classification}
                 </h3>
@@ -218,6 +232,9 @@ export function MutationWorkbench() {
               </span>
             </div>
             <p className="mt-3 text-sm leading-7 text-emerald-950/85">{summary.explanation}</p>
+            <p className="mt-3 rounded-[1rem] border border-emerald-100 bg-white/70 px-3 py-2 text-xs leading-6 text-emerald-900/80">
+              人教版必修2 正文按 DNA 变化将基因突变分为「替换 / 增添 / 缺失」；沉默、错义、无义、移码是按蛋白质影响的进阶分类，其中「无义突变」按惯例只涵盖碱基替换。
+            </p>
           </article>
 
           <article className="surface-card rounded-[1.75rem] p-5">
