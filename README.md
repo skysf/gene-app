@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+Product specification and roadmap: [plan/active/PROJECT_PLAN.md](plan/active/PROJECT_PLAN.md). Completed plans are archived under `plan/done/` (see `AGENTS.md`).
+
 ## Getting Started
 
 First, run the development server:
