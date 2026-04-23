@@ -62,10 +62,13 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
-          # Skip tauri-action's updater-JSON path — it doesn't aggregate across
-          # matrix jobs. We upload sigs per-platform below and build latest.json
-          # in the finalize job.
-          includeUpdaterJson: false
+          # Keep updater JSON enabled so Tauri actually produces the .sig /
+          # .app.tar.gz / .nsis.zip artifacts on disk. tauri-action will then
+          # emit "Signature not found for the updater JSON. Skipping upload..."
+          # (because a single matrix job only sees its own platform's sig) —
+          # that's expected; the explicit upload steps and the finalize job
+          # below pick up what it skips.
+          includeUpdaterJson: true
 
       - name: Upload macOS updater signature
         if: matrix.platform == 'macos-14'
