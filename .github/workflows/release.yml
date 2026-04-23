@@ -10,7 +10,28 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  prepare-release:
+    name: Create draft release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure draft release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --draft \
+              --title "Gene App $TAG" \
+              --notes "详见提交记录。" \
+              --repo "$REPO"
+          fi
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: prepare-release
     strategy:
       fail-fast: false
       matrix:
@@ -18,11 +39,9 @@ jobs:
           - platform: macos-14
             target: aarch64-apple-darwin
             args: --target aarch64-apple-darwin
-            bundle_subdir: aarch64-apple-darwin/release/bundle
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             args: ''
-            bundle_subdir: release/bundle
 
     runs-on: ${{ matrix.platform }}
 
@@ -49,59 +68,46 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build and release with Tauri
-        uses: tauri-apps/tauri-action@v0
+      - name: Build with Tauri CLI
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Gene App ${{ github.ref_name }}'
-          releaseBody: '详见提交记录。'
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
-          # Keep updater JSON enabled so Tauri actually produces the .sig /
-          # .app.tar.gz / .nsis.zip artifacts on disk. tauri-action will then
-          # emit "Signature not found for the updater JSON. Skipping upload..."
-          # (because a single matrix job only sees its own platform's sig) —
-          # that's expected; the explicit upload steps and the finalize job
-          # below pick up what it skips.
-          includeUpdaterJson: true
+        run: npx tauri build ${{ matrix.args }}
 
-      - name: Upload macOS updater signature
+      - name: Rename macOS updater bundle for asset consistency
         if: matrix.platform == 'macos-14'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
-          cd "src-tauri/target/${{ matrix.bundle_subdir }}/macos"
-          ls -la
-          gh release upload "$TAG" "Gene App.app.tar.gz.sig" --clobber
+          cd "src-tauri/target/${{ matrix.target }}/release/bundle/macos"
+          mv "Gene App.app.tar.gz" "Gene App_aarch64.app.tar.gz"
+          mv "Gene App.app.tar.gz.sig" "Gene App_aarch64.app.tar.gz.sig"
 
-      - name: Upload Windows updater assets
-        if: matrix.platform == 'windows-latest'
+      - name: List produced bundle files (diagnostic)
+        shell: bash
+        run: |
+          echo "=== Bundle tree ==="
+          find src-tauri/target -path '*/release/bundle/*' -type f 2>/dev/null | sort
+
+      - name: Upload release artifacts
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
-        shell: bash
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          cd "src-tauri/target/${{ matrix.bundle_subdir }}/nsis"
-          ls -la
-          VERSION="${TAG#v}"
-          gh release upload "$TAG" \
-            "Gene App_${VERSION}_x64-setup.exe.sig" \
-            "Gene App_${VERSION}_x64-setup.nsis.zip" \
-            "Gene App_${VERSION}_x64-setup.nsis.zip.sig" \
-            --clobber
+          find src-tauri/target \
+            -path '*/release/bundle/*' \
+            -type f \
+            ! -path '*/msi/*' \
+            \( -name '*.dmg' -o -name '*-setup.exe' -o -name '*.app.tar.gz' -o -name '*.nsis.zip' -o -name '*.sig' \) \
+            -exec sh -c 'echo "Uploading: $1"; gh release upload "$TAG" "$1" --clobber --repo "$REPO"' _ {} \;
 
   finalize:
     name: Compose latest.json
-    needs: release
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -119,17 +125,11 @@ jobs:
           echo "=== Downloaded signatures ==="
           ls -la /tmp/sigs/
 
-          MAC_SIG_FILE="/tmp/sigs/Gene.App.app.tar.gz.sig"
+          MAC_SIG_FILE="/tmp/sigs/Gene.App_aarch64.app.tar.gz.sig"
           WIN_SIG_FILE="/tmp/sigs/Gene.App_${VERSION}_x64-setup.nsis.zip.sig"
 
-          if [[ ! -f "$MAC_SIG_FILE" ]]; then
-            echo "ERROR: macOS updater signature not found at $MAC_SIG_FILE" >&2
-            exit 1
-          fi
-          if [[ ! -f "$WIN_SIG_FILE" ]]; then
-            echo "ERROR: Windows updater signature not found at $WIN_SIG_FILE" >&2
-            exit 1
-          fi
+          [[ -f "$MAC_SIG_FILE" ]] || { echo "ERROR: missing $MAC_SIG_FILE" >&2; exit 1; }
+          [[ -f "$WIN_SIG_FILE" ]] || { echo "ERROR: missing $WIN_SIG_FILE" >&2; exit 1; }
 
           MAC_SIG=$(cat "$MAC_SIG_FILE")
           WIN_SIG=$(cat "$WIN_SIG_FILE")
@@ -161,4 +161,4 @@ jobs:
 
           echo "=== latest.json ==="
           cat latest.json
-          gh release upload "$TAG" latest.json --clobber
+          gh release upload "$TAG" latest.json --clobber --repo "$REPO"
