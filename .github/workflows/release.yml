@@ -126,7 +126,7 @@ jobs:
           ls -la /tmp/sigs/
 
           MAC_SIG_FILE="/tmp/sigs/Gene.App_aarch64.app.tar.gz.sig"
-          WIN_SIG_FILE="/tmp/sigs/Gene.App_${VERSION}_x64-setup.nsis.zip.sig"
+          WIN_SIG_FILE="/tmp/sigs/Gene.App_${VERSION}_x64-setup.exe.sig"
 
           [[ -f "$MAC_SIG_FILE" ]] || { echo "ERROR: missing $MAC_SIG_FILE" >&2; exit 1; }
           [[ -f "$WIN_SIG_FILE" ]] || { echo "ERROR: missing $WIN_SIG_FILE" >&2; exit 1; }
@@ -154,7 +154,7 @@ jobs:
                 },
                 "windows-x86_64": {
                   signature: $win_sig,
-                  url: "https://github.com/\($repo)/releases/download/\($tag)/Gene.App_\($version_bare)_x64-setup.nsis.zip"
+                  url: "https://github.com/\($repo)/releases/download/\($tag)/Gene.App_\($version_bare)_x64-setup.exe"
                 }
               }
             }' > latest.json
