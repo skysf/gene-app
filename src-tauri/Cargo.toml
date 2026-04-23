@@ -1,6 +1,6 @@
 [package]
 name = "gene-app"
-version = "0.1.0"
+version = "0.1.1"
 description = "基因突变教学模拟器"
 authors = ["Sky"]
 license = "MIT"
