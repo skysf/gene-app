@@ -29,6 +29,7 @@
   "bundle": {
     "active": true,
     "targets": ["app", "dmg", "nsis"],
+    "createUpdaterArtifacts": true,
     "category": "Education",
     "shortDescription": "基因突变教学模拟器",
     "longDescription": "面向中国高中生的基因突变、镰状细胞贫血和自然选择互动教学工具。",
@@ -38,7 +39,13 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller",
+        "silent": true
+      }
+    }
   },
   "plugins": {
     "updater": {
