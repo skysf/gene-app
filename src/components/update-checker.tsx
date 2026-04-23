@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { checkForUpdates, type UpdateHandle } from "@/lib/updater";
+import {
+  checkForUpdates,
+  relaunchApp,
+  type DownloadPhase,
+  type UpdateHandle,
+} from "@/lib/updater";
 import { isTauriRuntime } from "@/lib/runtime";
 
 type UiState =
@@ -10,9 +15,11 @@ type UiState =
   | {
       phase: "installing";
       update: UpdateHandle;
+      downloadPhase: DownloadPhase;
       downloaded: number;
       total: number | null;
     }
+  | { phase: "ready"; update: UpdateHandle }
   | { phase: "error"; message: string };
 
 export function UpdateChecker() {
@@ -54,11 +61,62 @@ export function UpdateChecker() {
   if (state.phase === "installing") {
     const pct =
       state.total && state.total > 0
-        ? Math.min(100, Math.round((state.downloaded / state.total) * 100))
+        ? Math.min(
+            100,
+            Math.round((state.downloaded / state.total) * 100),
+          )
         : null;
+    const label =
+      state.downloadPhase === "installing"
+        ? "正在安装更新，请稍候..."
+        : `正在下载更新 ${pct !== null ? `${pct}%` : `${Math.round(state.downloaded / 1024)} KB`}...`;
     return (
       <div className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800 shadow-lg">
-        正在下载更新 {pct !== null ? `${pct}%` : `${Math.round(state.downloaded / 1024)} KB`}...
+        {label}
+      </div>
+    );
+  }
+
+  if (state.phase === "ready") {
+    return (
+      <div className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-lg">
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="flex-1">
+            <p className="text-sm font-semibold">
+              更新 v{state.update.info.version} 已安装
+            </p>
+            <p className="mt-1 text-xs text-emerald-800/90">
+              需要重启应用以生效。
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-semibold text-emerald-800"
+            >
+              稍后
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await relaunchApp();
+                } catch (error) {
+                  setState({
+                    phase: "error",
+                    message:
+                      (error as Error)?.message ||
+                      "重启失败，请手动退出后重新打开。",
+                  });
+                }
+              }}
+              className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-semibold text-white"
+            >
+              立即重启
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -94,18 +152,23 @@ export function UpdateChecker() {
               setState({
                 phase: "installing",
                 update,
+                downloadPhase: "downloading",
                 downloaded: 0,
                 total: null,
               });
               try {
-                await update.downloadAndInstall((downloaded, total) => {
-                  setState({
-                    phase: "installing",
-                    update,
-                    downloaded,
-                    total,
-                  });
-                });
+                await update.downloadAndInstall(
+                  (downloadPhase, downloaded, total) => {
+                    setState({
+                      phase: "installing",
+                      update,
+                      downloadPhase,
+                      downloaded,
+                      total,
+                    });
+                  },
+                );
+                setState({ phase: "ready", update });
               } catch (error) {
                 setState({
                   phase: "error",

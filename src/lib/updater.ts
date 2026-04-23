@@ -7,10 +7,16 @@ export type UpdateInfo = {
   date: string | null;
 };
 
+export type DownloadPhase = "downloading" | "installing";
+
 export type UpdateHandle = {
   info: UpdateInfo;
   downloadAndInstall: (
-    onProgress?: (downloaded: number, total: number | null) => void,
+    onProgress?: (
+      phase: DownloadPhase,
+      downloaded: number,
+      total: number | null,
+    ) => void,
   ) => Promise<void>;
 };
 
@@ -35,10 +41,12 @@ export async function checkForUpdates(): Promise<UpdateHandle | null> {
         await update.downloadAndInstall((event) => {
           if (event.event === "Started") {
             total = event.data.contentLength ?? null;
-            onProgress?.(0, total);
+            onProgress?.("downloading", 0, total);
           } else if (event.event === "Progress") {
             downloaded += event.data.chunkLength;
-            onProgress?.(downloaded, total);
+            onProgress?.("downloading", downloaded, total);
+          } else if (event.event === "Finished") {
+            onProgress?.("installing", total ?? downloaded, total);
           }
         });
       },
@@ -47,4 +55,10 @@ export async function checkForUpdates(): Promise<UpdateHandle | null> {
     console.error("updater check failed:", error);
     return null;
   }
+}
+
+export async function relaunchApp(): Promise<void> {
+  if (!isTauriRuntime()) return;
+  const { relaunch } = await import("@tauri-apps/plugin-process");
+  await relaunch();
 }
